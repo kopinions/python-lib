@@ -477,12 +477,12 @@ static PyObject* shmqueue_size(PyObject* self, PyObject* args)
 
 static PyMethodDef shmqueueMethods[]= {
     {"CShmQueue",  shmqueue_new_CShmQueue, METH_NOARGS, "Create a ShmQueue Object"},
-    {"init", shmqueue_init,METH_VARARGS,"Execute a shell command."},
-    {"enqueue", shmqueue_enqueue,METH_VARARGS,"Execute a shell command."},
-    {"dequeue", shmqueue_dequeue,METH_VARARGS,"Execute a shell command."},
-    {"is_empty",shmqueue_is_empty,METH_VARARGS,"Execute a shell command."},
+    {"init", shmqueue_init,METH_VARARGS,"init the share memory queue by file and size"},
+    {"enqueue", shmqueue_enqueue,METH_VARARGS,"push a message to the queue"},
+    {"dequeue", shmqueue_dequeue,METH_VARARGS,"pull a message from the queue"},
+    {"is_empty",shmqueue_is_empty,METH_VARARGS,"return true if the queue is empty"},
 //    {"empty",shmqueue_empty,METH_VARARGS,"Execute a shell command."},
-    {"size",shmqueue_size,METH_VARARGS,"Execute a shell command."},
+    {"size",shmqueue_size,METH_VARARGS,"return the size of the queue"},
     {NULL,NULL,0,NULL} 
 };
 
