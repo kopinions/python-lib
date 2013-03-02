@@ -1,8 +1,7 @@
 
-#ifndef __WIRELESS_BASE_LIBRARY_BUFFER_QUEUE_H__
-#define __WIRELESS_BASE_LIBRARY_BUFFER_QUEUE_H__
+#ifndef __BUFFER_QUEUE_H__
+#define __BUFFER_QUEUE_H__
 
-//#include "wbl_buffer_block.h"
 #include <vector>
 #include <sys/time.h>
 #include <stdexcept>
@@ -12,14 +11,7 @@ struct buffer_full: public std::runtime_error
 {
     buffer_full(const std::string& s):std::runtime_error(s){}
 };
-/**
- * 内存队列,支持变长的数据<br/>
- * <p>2006-07 重新整理</p>
- * <p>2006-10 改兼容64位操作系统(不包括win64)</p>
- * <p>为兼容老客户端代码,dequeue的valuesize是unsigned int类型</p>
- * @author  wbl
- * @version  1.0
- */
+
 class CBufferQueue
 {
 public:
@@ -91,4 +83,3 @@ private:
 
 
 #endif
-
