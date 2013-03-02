@@ -1,23 +1,44 @@
 import shmqueue
 
+class ShmQueueError(Exception):pass
+
 class ShmQueue(object):
     def __init__(self):
         self._shmqueue = shmqueue.CShmQueue()
 
     def init(self, path_to_file, size):
-        return shmqueue.init(self._shmqueue, path_to_file, size)
+        try:
+            shmqueue.init(self._shmqueue, path_to_file, size)
+        except Exception, e:
+            raise ShmQueueError(str(e))
 
     def enqueue(self, data):
-        return shmqueue.enqueue(self._shmqueue, data)
+        try:
+            shmqueue.enqueue(self._shmqueue, data)
+        except Exception, e:
+            raise ShmQueueError(str(e))
 
     def dequeue(self, length=4096):
-        return shmqueue.dequeue(self._shmqueue, length)
+        try:
+            msg = shmqueue.dequeue(self._shmqueue, length)
+        except Exception, e:
+            raise ShmQueueError(str(e))
+        if msg is None:
+            raise ShmQueueError("The share memory queue is empty")
+        return msg
 
     def is_empty(self):
-        return shmqueue.is_empty(self._shmqueue)
+        try:
+            is_empty = shmqueue.is_empty(self._shmqueue)
+        except Exception, e:
+            raise ShmQueueError(str(e))
 
     def size(self):
-        return shmqueue.size(self._shmqueue)
+        try:
+            size = shmqueue.size(self._shmqueue)
+        except Exception, e:
+            raise ShmQueueError(str(e))
+        return size
 
     #def empty(self):
     #return empty(self._shmqueue)

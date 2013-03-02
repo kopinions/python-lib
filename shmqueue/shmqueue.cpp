@@ -1,11 +1,3 @@
-/**
- * 共享内存队列,支持变长的数据
- * <p>2006-10 改兼容64位操作系统(不包括win64)</p>
- * <p>为兼容老客户端代码,Dequeue的valuesize是unsigned int类型</p>
- * @author  wbl
- * @version  1.0
- */
-
 #include <Python.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -37,16 +29,16 @@ public:
 
 public:
 	enum HeadStat {
-		Stat_Std = 0,		// 普通消息
-		Stat_Close_peer,		// 客户端关闭连接 c->s
-		Stat_Close_timeout,	// 客户端超时,gnp关闭连接 c->s
-		Stat_Close_error,	// socket错误关闭连接 c->s
-		Stat_Close_Server,	// server要求gnp关闭连接 s->c
-		Stat_Close_SendOver, // 数据发送完毕之后关闭
-		Stat_Accept,			// 客户端连接到来 c->s (可做一些特殊的处理入频率限制等)
-		Stat_Data_SendAndClose, // server要求gnp发完消息之后close对方连接
-		Stat_Manager,		// 管理端口消息
-		Stat_Close_Manager		// 管理端口消息
+		Stat_Std = 0,		
+		Stat_Close_peer,
+		Stat_Close_timeout,	
+		Stat_Close_error,	
+		Stat_Close_Server,	
+		Stat_Close_SendOver, 
+		Stat_Accept,			
+		Stat_Data_SendAndClose, 
+		Stat_Manager,		
+		Stat_Close_Manager		
 	};
 
 	struct Head {
@@ -59,24 +51,19 @@ public:
 		unsigned short stat;
 	};
     
-//    struct buffer_full: public std::runtime_error
-//    {
-//        buffer_full(const std::string& s):std::runtime_error(s){}
-//    };
 
 	void init(key_t key,key_t semkey,unsigned long queuesize) throw(std::runtime_error);
 	// 使用文件生成key
 	void init(const std::string& shmkeyfile,const std::string& semkeyfile,unsigned long queuesize) throw(std::runtime_error);
 	// throw buffer_full when queue package length > buffersize
-	bool Dequeue(Head& head,char *buffer,unsigned& buffersize) throw(buffer_full, std::runtime_error);
+	bool Dequeue(char *buffer,unsigned& buffersize) throw(buffer_full, std::runtime_error);
 	// throw buffer_full when queue is full
-	void Enqueue(const Head& head,const char *buffer,unsigned len) throw(buffer_full, std::runtime_error);
+	void Enqueue(const char *buffer,unsigned len) throw(buffer_full, std::runtime_error);
 	bool IsEmpty();
     unsigned int count() ;
 
     /**
      * unsigned转string
-     * @see #s2u
      */
     inline static string u2s(const unsigned u)
     {
@@ -106,41 +93,13 @@ private:
 
 private:
 	CBufferQueue _queue;
-    // queue<string> _queue;
 	long _shmid;
 	long _semid;
 	key_t _shmkey;
 	key_t _semkey;
 	unsigned long _queuesize;
-
-	//bool _lock;
 };
 
-
-/*START add by stillzhang 2008-03-05*/
-/**
-   由于目前的共享内存队列比较多，所以发现比较多的key重复现象
-   查看系统ftok代码后发现key的生成只用了inode号码的第3,4两个字节
-   为了降低重复将inode号码的第2个字节为proj_id
-
-   附：系统ftok的代码
-   key_t
-    ftok (pathname, proj_id)
-         const char *pathname;
-         int proj_id;
-    {
-      struct stat64 st;
-      key_t key;
-
-      if (__xstat64 (_STAT_VER, pathname, &st) < 0)
-        return (key_t) -1;
-
-      key = ((st.st_ino & 0xffff) | ((st.st_dev & 0xff) << 16)
-	     | ((proj_id & 0xff) << 24));
-
-      return key;
-    }
-**/
 inline  key_t CShmQueue::ftok(const std::string &file_name)
 {
     struct stat st;
@@ -149,21 +108,12 @@ inline  key_t CShmQueue::ftok(const std::string &file_name)
     if (stat (file_name.c_str(), &st) < 0)
         return (key_t) -1;
 
-	// 使用0x7f0000 确保后面的左移操作不会导致int溢出
     int proj_id = (st.st_ino & 0x7f0000) >> 16;
-
-	// key 的生成规则:
-	// 1、有符号int
-	// 2、从左到右依次是: 
-	//                 inode第二位
-	//                 设备号第四位
-	//                 inode的后两位
     key = ((st.st_ino & 0xffff) | ((st.st_dev & 0xff) << 16)
 	     | ((proj_id & 0xff) << 24));
 
     return key;
 }
-/*END add by stillzhang 2008-03-05*/
 
 inline void CShmQueue::init(const std::string& shmkeyfile,const std::string& semkeyfile, unsigned long queuesize) throw(std::runtime_error)
 {
@@ -171,8 +121,6 @@ inline void CShmQueue::init(const std::string& shmkeyfile,const std::string& sem
 	if(key < 0) throw std::runtime_error(std::string("CShmQueue::init shmkeyfile invalid:")+shmkeyfile);
 	key_t semkey = ftok(semkeyfile.c_str()); 
 	if(semkey < 0) throw std::runtime_error(std::string("CShmQueue::init semkeyfile invalid:")+semkeyfile);
-	//cout << "shmkeyfile:" << shmkeyfile << " key:" << key << endl;
-	//cout << "semkeyfile:" << semkeyfile << " key:" << semkey << endl;
 	init(key,semkey,queuesize);
 }
 
@@ -227,13 +175,11 @@ inline void CShmQueue::init(key_t key,key_t semkey, unsigned long queuesize) thr
 	else _queue.attach(buffer, _queuesize);
 }
 
-inline bool CShmQueue::Dequeue(Head& head,char *buffer,unsigned& buffersize) throw(buffer_full, std::runtime_error)
+inline bool CShmQueue::Dequeue(char *buffer,unsigned& buffersize) throw(buffer_full, std::runtime_error)
 {
-	unsigned head_len = sizeof(CShmQueue::Head);
-
 	lock();
 	try {
-		if(_queue.dequeue((char *)&head,head_len,buffer, buffersize)) {
+		if(_queue.dequeue(buffer, buffersize)) {
 			unlock();
 			return true;
 		} 
@@ -245,13 +191,11 @@ inline bool CShmQueue::Dequeue(Head& head,char *buffer,unsigned& buffersize) thr
 	}
 }
 
-inline void CShmQueue::Enqueue(const Head& head,const char *buffer,unsigned len) throw(buffer_full,std::runtime_error)
+inline void CShmQueue::Enqueue(const char *buffer,unsigned len) throw(buffer_full,std::runtime_error)
 {
-	static const unsigned head_len = sizeof(CShmQueue::Head);
-
 	lock();
 	try {
-		_queue.enqueue((const char*)&head,head_len,buffer, len);
+		_queue.enqueue(buffer, len);
 		unlock();
 	} catch(buffer_full& e) {
 		unlock();
@@ -333,47 +277,33 @@ inline unsigned int CShmQueue::count()
     return count;
 }
        
-inline bool operator<(const CShmQueue::Head& l, const CShmQueue::Head& r)
-{
-	if(l.sock_index < r.sock_index)
-		return true;
-	else if(l.sock_index > r.sock_index)
-		return false;
-
-	if(l.sock_create.tv_sec < r.sock_create.tv_sec)
-		return true;
-	else if(l.sock_create.tv_sec > r.sock_create.tv_sec)
-		return false;
-
-	return l.sock_create.tv_usec < l.sock_create.tv_usec;
-}
 
 int main(int argc, char ** argv)
 {
-    int key = CShmQueue::ftok(argv[1]);     
+    if (argc < 2)
+    {
+        cout << "usage:\t" << argv[0] << " path_to_a_file" << endl;
+        return 1;
+    }
     CShmQueue queue;
-    queue.init(key, key, 1000000);    
+    queue.init(argv[1], argv[1], 1000);    
     int i = 0;
     int _sendbuffer_size = 100;
     while (i++ < 100)
     {
-        CShmQueue::Head head;
-        char *Buffer = new char[_sendbuffer_size+1];
-        head.sock_index = i; 
-        head.src_ip = 111;
-        head.src_port = i;
-        head.stat = CShmQueue::Stat_Std;
-        queue.Enqueue(head,Buffer, _sendbuffer_size);
+        char *Buffer = "this is a test";
+        queue.Enqueue(Buffer, strlen(Buffer));
     }
     sleep(1);
     i = 0;
     while (i++ < 100)
     {
         char *buffer = new char[_sendbuffer_size+3];
+        memset(buffer, 0, _sendbuffer_size+3);
         unsigned len = _sendbuffer_size;
-        CShmQueue::Head head;
-        queue.Dequeue(head, buffer, len);
-        cout << head.src_port << endl; 
+        queue.Dequeue(buffer, len);
+        cout << buffer << endl;
+        delete [] buffer;
     }
     return 0;
 }
@@ -402,14 +332,14 @@ static PyObject* shmqueue_init(PyObject* self, PyObject* args)
     int queue_size;
     if (!PyArg_ParseTuple(args, "Osi", &pyqueue, &path_to_file, &queue_size))
         return NULL;
-	int key = CShmQueue::ftok(path_to_file);
+    // int key = CShmQueue::ftok(path_to_file);
     void * temp = PyCObject_AsVoidPtr(pyqueue);
     //把void指针转换为一个Numbers对象指针
     CShmQueue* queue = static_cast<CShmQueue*>(temp);
     //调用函数
     try
     {
-        queue->init(key, key, queue_size);
+        queue->init(path_to_file, path_to_file, queue_size);
     }
     catch (std::runtime_error &e)
     {
@@ -425,7 +355,6 @@ static PyObject* shmqueue_init(PyObject* self, PyObject* args)
 
 static PyObject* shmqueue_enqueue(PyObject* self, PyObject* args)
 {
-    CShmQueue::Head head;
     PyObject* pyqueue = NULL;
     char* info;
     if (!PyArg_ParseTuple(args, "Os", &pyqueue, &info))
@@ -436,7 +365,7 @@ static PyObject* shmqueue_enqueue(PyObject* self, PyObject* args)
     //调用函数
     try
     {
-        queue->Enqueue(head, info, strlen(info));
+        queue->Enqueue(info, strlen(info));
     }
     catch (buffer_full &e)
     {
@@ -457,7 +386,6 @@ static PyObject* shmqueue_enqueue(PyObject* self, PyObject* args)
 
 static PyObject* shmqueue_dequeue(PyObject* self, PyObject* args)
 {
-    CShmQueue::Head head;
     PyObject* pyqueue = NULL;
     unsigned int len;
     if (!PyArg_ParseTuple(args, "OI", &pyqueue, &len))
@@ -470,7 +398,7 @@ static PyObject* shmqueue_dequeue(PyObject* self, PyObject* args)
     PyObject* retval = NULL; 
     try
     {
-        if (queue->Dequeue(head, info, len))
+        if (queue->Dequeue(info, len))
             retval = (PyObject*)Py_BuildValue("s", info);
         else
             retval = (PyObject*)Py_BuildValue("");
